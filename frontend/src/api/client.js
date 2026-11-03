@@ -68,6 +68,14 @@ export const withdrawReport = (id) => api.post(`/reports/${id}/withdraw`).then(r
 export const declareNotFound = (id) => api.post(`/reports/${id}/not-found`).then(r => r.data);
 
 // --- Found Items (Staff) ---
+export const analyzeItemImageWithAi = (imageFile) => {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+  return api.post('/found-items/analyze-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }).then(r => r.data);
+};
+
 export const logFoundItem = (formData) =>
   api.post('/found-items', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }

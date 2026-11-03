@@ -117,6 +117,7 @@ export const reportForFacultySelect = {
   closedReason: true,
   createdAt: true,
   updatedAt: true,
+  aiLabels: true,
   images: true,
   category: {
     select: { categoryId: true, categoryName: true }

@@ -24,6 +24,7 @@ import staffRoutes from './routes/staff.js';
 import roomVisitsRoutes from './routes/roomVisits.js';
 import notificationsRoutes from './routes/notifications.js';
 import adminRoutes from './routes/admin.js';
+import jobsRoutes from './routes/jobs.js';
 
 const app = express();
 
@@ -82,6 +83,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/room-visits', roomVisitsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/jobs', jobsRoutes);
 
 // 8. 404 Handler
 app.use((req, res, next) => {

@@ -1,0 +1,16 @@
+aws_region        = "ap-south-1"
+environment       = "prod"
+project_name      = "campusfind"
+vpc_cidr          = "10.0.0.0/16"
+
+db_name           = "campusfind"
+db_username       = "campusfind_admin"
+db_password       = "ReplaceWithStrongPassword123!"
+db_instance_class = "db.t4g.micro"
+
+backend_image     = "<AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/campusfind-backend:latest"
+frontend_image    = "<AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/campusfind-frontend:latest"
+
+jwt_secret        = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+cron_secret       = "campusfind-cloud-cron-secret-key"
+

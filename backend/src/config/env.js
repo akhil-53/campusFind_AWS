@@ -36,5 +36,11 @@ export const env = {
   EMAIL_ENABLED: process.env.EMAIL_ENABLED === 'true',
   SMTP_USER: process.env.SMTP_USER || '',
   SMTP_PASS: process.env.SMTP_PASS || '',
-  ENABLE_APP_CRON: process.env.ENABLE_APP_CRON === 'true'
+  ENABLE_APP_CRON: process.env.ENABLE_APP_CRON === 'true',
+  AWS_REGION: process.env.AWS_REGION || 'ap-south-1',
+  AWS_S3_BUCKET: process.env.AWS_S3_BUCKET || '',
+  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || '',
+  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || '',
+  AWS_SES_FROM_EMAIL: process.env.AWS_SES_FROM_EMAIL || '',
+  CRON_SECRET: process.env.CRON_SECRET || 'campusfind-cloud-cron-secret-key'
 };

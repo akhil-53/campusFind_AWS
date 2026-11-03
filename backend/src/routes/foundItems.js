@@ -7,6 +7,7 @@ import { authorize } from '../middleware/authorize.js';
 import { validate } from '../middleware/validate.js';
 import { asUser } from '../services/dbActor.js';
 import { uploadItemImage, getSignedImageUrl } from '../services/storage.js';
+import { analyzeItemImage } from '../services/aiVision.js';
 import { getPaginationParams, formatPaginatedResponse } from '../utils/pagination.js';
 import { HttpError } from '../utils/httpError.js';
 
@@ -26,6 +27,25 @@ const upload = multer({
     }
   }
 });
+
+// POST /api/found-items/analyze-image (AWS Cloud Vision / Textract AI helper)
+router.post(
+  '/analyze-image',
+  auth,
+  authorize('STAFF', 'ADMIN'),
+  upload.single('image'),
+  async (req, res, next) => {
+    try {
+      if (!req.file) {
+        throw new HttpError(400, 'Image file is required for AI analysis', 'IMAGE_REQUIRED');
+      }
+      const analysis = await analyzeItemImage(req.file.buffer);
+      return res.json({ ok: true, data: analysis });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 // POST /api/found-items (Staff logs found item)
 router.post(
@@ -68,6 +88,20 @@ router.post(
         throw new HttpError(409, `Shelf code ${shelfCode} is already occupied.`, 'SHELF_CODE_EXISTS');
       }
 
+      // Analyze photos with AWS AI if uploaded
+      const files = req.files || [];
+      let aiLabels = null;
+      if (files.length > 0) {
+        try {
+          const analysis = await analyzeItemImage(files[0].buffer);
+          if (analysis.labels && analysis.labels.length > 0) {
+            aiLabels = analysis.labels.join(', ');
+          }
+        } catch (aiErr) {
+          console.warn('[FoundItems] AWS AI visual analysis skipped:', aiErr.message);
+        }
+      }
+
       const item = await asUser(req.user.id, async (tx) => {
         return tx.foundItem.create({
           data: {
@@ -80,6 +114,7 @@ router.post(
             color: color || null,
             brand: brand || null,
             shelfCode: shelfCode.trim(),
+            aiLabels,
             status: 'AVAILABLE',
             foundAt: foundDate
           }
@@ -89,7 +124,6 @@ router.post(
       createdItemId = item.foundId;
 
       // Handle photos if any uploaded
-      const files = req.files || [];
       if (files.length > 0) {
         try {
           const imageRecords = [];

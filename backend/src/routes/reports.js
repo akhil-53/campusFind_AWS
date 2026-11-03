@@ -9,6 +9,7 @@ import { validate } from '../middleware/validate.js';
 import { asUser } from '../services/dbActor.js';
 import { assertOwnReport, assertFacultyOnCase, reportForStudentSelect, reportForFacultySelect } from '../services/access.js';
 import { uploadItemImage, getSignedImageUrl } from '../services/storage.js';
+import { analyzeItemImage } from '../services/aiVision.js';
 import { getPaginationParams, formatPaginatedResponse } from '../utils/pagination.js';
 import { HttpError } from '../utils/httpError.js';
 
@@ -73,6 +74,20 @@ router.post(
         throw new HttpError(422, 'Lost To date cannot be in the future', 'FUTURE_DATE_NOT_ALLOWED');
       }
 
+      // Analyze reference photo with AWS AI if provided by student
+      const files = req.files || [];
+      let aiLabels = null;
+      if (files.length > 0) {
+        try {
+          const analysis = await analyzeItemImage(files[0].buffer);
+          if (analysis.labels && analysis.labels.length > 0) {
+            aiLabels = analysis.labels.join(', ');
+          }
+        } catch (aiErr) {
+          console.warn('[Reports] AWS AI visual analysis skipped:', aiErr.message);
+        }
+      }
+
       const report = await asUser(req.user.id, async (tx) => {
         return tx.lostReport.create({
           data: {
@@ -85,6 +100,7 @@ router.post(
             color: color || null,
             brand: brand || null,
             identifyingMarks,
+            aiLabels,
             lostFrom: fromDate,
             lostTo: toDate,
             status: 'OPEN'
@@ -94,7 +110,6 @@ router.post(
       });
 
       // Handle reference photos if any uploaded
-      const files = req.files || [];
       if (files.length > 0) {
         try {
           const imageRecords = [];

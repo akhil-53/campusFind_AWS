@@ -191,6 +191,7 @@ router.get(
               color: m.foundItem.color,
               brand: m.foundItem.brand,
               shelfCode: m.foundItem.shelfCode,
+              aiLabels: m.foundItem.aiLabels,
               foundAt: m.foundItem.foundAt,
               status: m.foundItem.status,
               locationText: m.foundItem.locationText || null,

@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS found_items (
   color           VARCHAR(30),
   brand           VARCHAR(40),
   shelf_code      VARCHAR(20) NOT NULL UNIQUE,
+  ai_labels       TEXT,
   status          VARCHAR(12) NOT NULL DEFAULT 'AVAILABLE'
                   CHECK (status IN ('AVAILABLE','RETURNED','DISPOSED','DONATED')),
   found_at        TIMESTAMPTZ NOT NULL,
@@ -85,6 +86,7 @@ CREATE TABLE IF NOT EXISTS lost_reports (
   color             VARCHAR(30),
   brand             VARCHAR(40),
   identifying_marks TEXT NOT NULL,
+  ai_labels         TEXT,
   lost_from         TIMESTAMPTZ NOT NULL,
   lost_to           TIMESTAMPTZ NOT NULL,
   status            VARCHAR(20) NOT NULL DEFAULT 'OPEN'

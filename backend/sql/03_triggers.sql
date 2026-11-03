@@ -75,9 +75,10 @@ BEGIN
   FROM found_items f
   CROSS JOIN LATERAL (SELECT fn_match_score(NEW.location_id, NEW.lost_from, NEW.lost_to,
          concat_ws(' ', NEW.description, NEW.brand), NEW.color,
-         f.location_id, f.found_at, concat_ws(' ', f.description, f.brand), f.color) AS score) s
+         f.location_id, f.found_at, concat_ws(' ', f.description, f.brand), f.color,
+         NEW.ai_labels, f.ai_labels) AS score) s
   WHERE f.status = 'AVAILABLE' AND f.category_id = NEW.category_id
-    AND f.found_at >= NEW.lost_from - interval '1 hour'
+    AND f.found_at >= NEW.lost_from - interval '24 hours'
     AND s.score >= v_min;
   PERFORM fn_audit('REPORT_CREATED', 'lost_reports', NEW.report_id);
   PERFORM fn_assign_report(NEW.report_id);
@@ -97,9 +98,10 @@ BEGIN
     FROM lost_reports r
     CROSS JOIN LATERAL (SELECT fn_match_score(r.location_id, r.lost_from, r.lost_to,
            concat_ws(' ', r.description, r.brand), r.color,
-           NEW.location_id, NEW.found_at, concat_ws(' ', NEW.description, NEW.brand), NEW.color) AS score) s
+           NEW.location_id, NEW.found_at, concat_ws(' ', NEW.description, NEW.brand), NEW.color,
+           r.ai_labels, NEW.ai_labels) AS score) s
     WHERE r.status IN ('OPEN','ASSIGNED','VISIT_SCHEDULED') AND r.category_id = NEW.category_id
-      AND NEW.found_at >= r.lost_from - interval '1 hour' AND s.score >= v_min
+      AND NEW.found_at >= r.lost_from - interval '24 hours' AND s.score >= v_min
     ON CONFLICT (report_id, found_id) DO NOTHING
     RETURNING report_id, score
   LOOP

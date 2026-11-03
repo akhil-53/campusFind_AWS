@@ -26,7 +26,10 @@ import {
   AlertTriangle,
   Download,
   Boxes,
-  HelpCircle
+  HelpCircle,
+  Sparkles,
+  Eye,
+  Maximize2
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import toast from 'react-hot-toast';
@@ -48,6 +51,8 @@ export function CaseDetail() {
   const [generatedLetter, setGeneratedLetter] = useState(null);
 
   const [notFoundConfirmOpen, setNotFoundConfirmOpen] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [comparisonModal, setComparisonModal] = useState(null);
 
   const { data: metaData } = useQuery({ queryKey: ['meta'], queryFn: getMeta });
 
@@ -203,6 +208,51 @@ export function CaseDetail() {
                 Compare these exact marks with the physical item during the scheduled verification.
               </p>
             </div>
+
+            {/* Student Uploaded Photos Section */}
+            <div className="pt-3 border-t border-slate-100 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Student Uploaded Photo{report.images?.length > 1 ? 's' : ''}
+                </span>
+                {report.aiLabels ? (
+                  <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200/80 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-purple-600" />
+                    <span>AWS AI Tagged</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-400">No Photo Uploaded</span>
+                )}
+              </div>
+
+              {report.images && report.images.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex gap-2.5 overflow-x-auto pb-1">
+                    {report.images.map((img, idx) => (
+                      <div
+                        key={img.imageId || idx}
+                        onClick={() => setPreviewImage(img.url)}
+                        className="group relative w-24 h-24 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden cursor-pointer hover:ring-2 hover:ring-brand-500 transition flex-shrink-0 shadow-sm"
+                      >
+                        <img src={img.url} alt="Student Reference" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
+                          <Maximize2 className="w-4 h-4" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {report.aiLabels && (
+                    <div className="p-2 bg-slate-50 rounded-xl border border-slate-200/60 text-[11px] text-slate-600">
+                      <span className="font-semibold text-slate-800">Visual Labels:</span> {report.aiLabels}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-center text-xs text-slate-400">
+                  Student did not provide a reference photo
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Pending Verifications */}
@@ -284,9 +334,18 @@ export function CaseDetail() {
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-center space-x-3">
-                          <div className="w-16 h-16 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+                          <div
+                            onClick={() => item.images?.[0]?.url && setPreviewImage(item.images[0].url)}
+                            className={`w-16 h-16 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0 ${item.images?.[0]?.url ? 'cursor-pointer hover:ring-2 hover:ring-brand-500 transition group relative' : ''}`}
+                            title={item.images?.[0]?.url ? 'Click to view full photo' : ''}
+                          >
                             {item.images?.[0]?.url ? (
-                              <img src={item.images[0].url} alt="" className="w-full h-full object-cover" />
+                              <>
+                                <img src={item.images[0].url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
+                                  <Maximize2 className="w-3.5 h-3.5" />
+                                </div>
+                              </>
                             ) : (
                               <Boxes className="w-6 h-6 text-slate-400" />
                             )}
@@ -326,9 +385,107 @@ export function CaseDetail() {
                         />
                       </div>
 
+                      {/* Factor Breakdown Badges */}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px]">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                          Factors:
+                        </span>
+
+                        {/* Category */}
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span>Category: {report?.category?.categoryName || 'Spectacles'}</span>
+                        </span>
+
+                        {/* Color */}
+                        {item.color && report?.color && (
+                          item.color.toLowerCase() === report.color.toLowerCase() ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span>Color: {item.color} (+5 pts)</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-slate-50 text-slate-500 border border-slate-200">
+                              <X className="w-3 h-3 text-slate-400" />
+                              <span>Color: {item.color} vs {report.color}</span>
+                            </span>
+                          )
+                        )}
+
+                        {/* Brand */}
+                        {item.brand && report?.brand && (
+                          item.brand.toLowerCase() === report.brand.toLowerCase() ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span>Brand: {item.brand} matched</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-amber-50/70 text-amber-700 border border-amber-200/60">
+                              <X className="w-3 h-3 text-amber-500" />
+                              <span>Brand: {item.brand} (claimed: {report.brand})</span>
+                            </span>
+                          )
+                        )}
+
+                        {/* Location / Room */}
+                        {item.roomName && (report?.roomName || report?.locationText) && (
+                          (item.roomName.toLowerCase().includes((report.roomName || report.locationText).toLowerCase()) ||
+                           (report.roomName || report.locationText).toLowerCase().includes(item.roomName.toLowerCase())) ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span>Room: {item.roomName} (+20 pts)</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-slate-50 text-slate-500 border border-slate-200">
+                              <MapPin className="w-3 h-3 text-slate-400" />
+                              <span>Room: {item.roomName} (lost: {report.roomName || report.locationText})</span>
+                            </span>
+                          )
+                        )}
+
+                        {/* Time */}
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-blue-50 text-blue-700 border border-blue-200/60">
+                          <Clock className="w-3 h-3 text-blue-600" />
+                          <span>Turnover: {dayjs(item.foundAt).format('DD MMM, hh:mm A')} (+10 pts)</span>
+                        </span>
+
+                        {/* Visual AI Badge */}
+                        {item.aiLabels && report?.aiLabels ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-purple-50 text-purple-700 border border-purple-200/80">
+                            <Sparkles className="w-3 h-3 text-purple-600" />
+                            <span>Visual AI: Matched (+35 pts)</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-slate-50 text-slate-500 border border-slate-200">
+                            <HelpCircle className="w-3 h-3 text-slate-400" />
+                            <span>Visual AI: No image tags (shifted to text)</span>
+                          </span>
+                        )}
+                      </div>
+
                       {/* Match Actions */}
                       {!['CONFIRMED', 'FAILED'].includes(m.status) && (
                         <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100 text-xs">
+                          {/* Compare Photos Button */}
+                          {(report?.images?.length > 0 || item.images?.length > 0) && (
+                            <button
+                              type="button"
+                              onClick={() => setComparisonModal({
+                                studentImg: report?.images?.[0]?.url,
+                                staffImg: item.images?.[0]?.url,
+                                shelfCode: item.shelfCode,
+                                description: item.description,
+                                marks: report?.identifyingMarks,
+                                studentAi: report?.aiLabels,
+                                staffAi: item.aiLabels
+                              })}
+                              className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold transition inline-flex items-center gap-1.5"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Compare Photos</span>
+                            </button>
+                          )}
+
                           {m.status === 'SUGGESTED' && (
                             <button
                               onClick={() => matchStatusMutation.mutate({ matchId: m.matchId, status: 'SHORTLISTED' })}
@@ -584,6 +741,106 @@ export function CaseDetail() {
         confirmText="Confirm Not Found"
         isDestructive={false}
       />
+
+      {/* Full Photo Preview Modal */}
+      {previewImage && (
+        <Modal
+          isOpen={!!previewImage}
+          onClose={() => setPreviewImage(null)}
+          title="Item Photo Preview"
+          size="lg"
+        >
+          <div className="flex flex-col items-center justify-center p-2">
+            <img
+              src={previewImage}
+              alt="Item Preview"
+              className="max-h-[70vh] w-auto rounded-2xl object-contain shadow-md"
+            />
+          </div>
+        </Modal>
+      )}
+
+      {/* Side-by-Side Visual Comparison Modal */}
+      {comparisonModal && (
+        <Modal
+          isOpen={!!comparisonModal}
+          onClose={() => setComparisonModal(null)}
+          title={`Visual Comparison: Claim vs Shelf ${comparisonModal.shelfCode}`}
+          size="2xl"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Left: Student Claim */}
+              <div className="space-y-2 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                  Student Claimed Reference
+                </span>
+                <div className="w-full h-64 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner">
+                  {comparisonModal.studentImg ? (
+                    <img
+                      src={comparisonModal.studentImg}
+                      alt="Student Claimed Item"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-center text-xs text-slate-400 p-4">
+                      No reference photo submitted by student
+                    </div>
+                  )}
+                </div>
+                {comparisonModal.studentAi && (
+                  <p className="text-[10px] text-purple-700 bg-purple-50 p-2 rounded-lg border border-purple-200">
+                    <span className="font-bold">AI Labels:</span> {comparisonModal.studentAi}
+                  </p>
+                )}
+              </div>
+
+              {/* Right: Staff Logged Item */}
+              <div className="space-y-2 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Physical Item ({comparisonModal.shelfCode})
+                  </span>
+                  <span className="font-mono text-xs font-bold bg-slate-900 text-white px-2 py-0.5 rounded">
+                    {comparisonModal.shelfCode}
+                  </span>
+                </div>
+                <div className="w-full h-64 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner">
+                  {comparisonModal.staffImg ? (
+                    <img
+                      src={comparisonModal.staffImg}
+                      alt="Physical Found Item"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-center text-xs text-slate-400 p-4">
+                      No staff photos attached
+                    </div>
+                  )}
+                </div>
+                {comparisonModal.staffAi && (
+                  <p className="text-[10px] text-purple-700 bg-purple-50 p-2 rounded-lg border border-purple-200">
+                    <span className="font-bold">AI Labels:</span> {comparisonModal.staffAi}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Confidential Claimed Marks Check */}
+            {comparisonModal.marks && (
+              <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-xs space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                  <ShieldCheck className="w-4 h-4 text-amber-700" />
+                  <span>Confidential Claimed Marks to Verify:</span>
+                </div>
+                <p className="italic text-amber-950 font-medium pl-5.5">
+                  "{comparisonModal.marks}"
+                </p>
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

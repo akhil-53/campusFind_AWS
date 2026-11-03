@@ -4,9 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { getMeta, logFoundItem } from '../../api/client';
+import { getMeta, logFoundItem, analyzeItemImageWithAi } from '../../api/client';
 import { ImageUploader } from '../../components/ImageUploader';
-import { PackagePlus, ArrowLeft, CheckCircle2, Tag, MapPin, ChevronDown } from 'lucide-react';
+import { PackagePlus, ArrowLeft, CheckCircle2, Tag, MapPin, ChevronDown, Sparkles, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const foundItemSchema = z.object({
@@ -30,6 +30,8 @@ export function NewFoundItem() {
   const navigate = useNavigate();
   const [images, setImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [analyzingAi, setAnalyzingAi] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
   const [createdItem, setCreatedItem] = useState(null);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [locationQuery, setLocationQuery] = useState('');
@@ -74,6 +76,35 @@ export function NewFoundItem() {
     setValue('locationText', label, { shouldValidate: true });
     setLocationQuery(label);
     setShowLocationSuggestions(false);
+  };
+
+  const handleAiAnalyze = async () => {
+    if (!images || images.length === 0) {
+      toast.error('Please upload at least one image first.');
+      return;
+    }
+    setAnalyzingAi(true);
+    try {
+      const res = await analyzeItemImageWithAi(images[0]);
+      if (res?.data) {
+        setAiAnalysis(res.data);
+        if (res.data.suggestedCategoryId && !watch('categoryId')) {
+          setValue('categoryId', res.data.suggestedCategoryId, { shouldValidate: true });
+        }
+        if (res.data.colors?.length > 0 && !watch('color')) {
+          setValue('color', res.data.colors.join(' / '), { shouldValidate: true });
+        }
+        if (res.data.labels?.length > 0 && !watch('description')) {
+          setValue('description', `${res.data.labels.slice(0, 4).join(', ')} found on premises`, { shouldValidate: true });
+        }
+        toast.success(res.data.isAwsAnalyzed ? 'AWS AI analyzed labels & OCR text!' : 'Image processed.');
+      }
+    } catch (err) {
+      console.warn('AI analysis error:', err);
+      toast.error('Could not analyze image with AI.');
+    } finally {
+      setAnalyzingAi(false);
+    }
   };
 
   const onSubmit = async (values) => {
@@ -368,10 +399,57 @@ export function NewFoundItem() {
 
         {/* Photos Upload */}
         <div>
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-            Item Photos (1–3 Photos)
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Item Photos (1–3 Photos)
+            </label>
+            {images.length > 0 && (
+              <button
+                type="button"
+                onClick={handleAiAnalyze}
+                disabled={analyzingAi}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition"
+              >
+                {analyzingAi ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Analyzing Image...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Auto-Fill with AWS AI</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
           <ImageUploader images={images} onChange={setImages} maxFiles={3} />
+
+          {/* AI Extracted Insights Banner */}
+          {aiAnalysis && (
+            <div className="mt-3 p-3 bg-gradient-to-r from-amber-50/50 to-orange-50/50 border border-amber-200/60 rounded-xl space-y-2 text-xs">
+              <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                <Sparkles className="w-4 h-4 text-amber-600" />
+                <span>AWS Cloud AI Analysis Insights</span>
+              </div>
+              {aiAnalysis.labels?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="text-slate-500 font-semibold self-center">Detected:</span>
+                  {aiAnalysis.labels.map((lbl, idx) => (
+                    <span key={idx} className="px-2 py-0.5 bg-white border border-amber-200 text-slate-700 rounded-md font-medium">
+                      {lbl}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {aiAnalysis.extractedText && (
+                <div className="pt-1 text-slate-700">
+                  <span className="font-semibold text-amber-800">OCR Extracted Text:</span> {aiAnalysis.extractedText}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">

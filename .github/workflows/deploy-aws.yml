@@ -1,0 +1,71 @@
+name: Deploy to AWS ECS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/deploy-aws.yml'
+
+env:
+  AWS_REGION: ap-south-1
+  ECS_CLUSTER: campusfind-cluster
+  BACKEND_SERVICE: campusfind-backend-service
+  FRONTEND_SERVICE: campusfind-frontend-service
+  ECR_BACKEND_REPO: campusfind-backend
+  ECR_FRONTEND_REPO: campusfind-frontend
+
+jobs:
+  deploy:
+    name: Build & Deploy to AWS Fargate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # --- Build & Push Backend ---
+      - name: Build, tag, and push Backend Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_BACKEND_REPO:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_BACKEND_REPO:latest ./backend
+          docker push $ECR_REGISTRY/$ECR_BACKEND_REPO:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_BACKEND_REPO:latest
+
+      # --- Build & Push Frontend ---
+      - name: Build, tag, and push Frontend Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            --build-arg VITE_API_URL="/api" \
+            --build-arg VITE_GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
+            -t $ECR_REGISTRY/$ECR_FRONTEND_REPO:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_FRONTEND_REPO:latest \
+            ./frontend
+          docker push $ECR_REGISTRY/$ECR_FRONTEND_REPO:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_FRONTEND_REPO:latest
+
+      # --- Deploy to ECS Fargate ---
+      - name: Force new deployment on ECS Services
+        run: |
+          aws ecs update-service --cluster $ECS_CLUSTER --service $BACKEND_SERVICE --force-new-deployment --region $AWS_REGION
+          aws ecs update-service --cluster $ECS_CLUSTER --service $FRONTEND_SERVICE --force-new-deployment --region $AWS_REGION
+
